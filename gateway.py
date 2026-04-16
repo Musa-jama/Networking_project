@@ -5,7 +5,7 @@ import logging
 import threading
 import time
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import paho.mqtt.client as mqtt
@@ -61,7 +61,7 @@ def build_table() -> Table:
     table.add_column("Ports Scanned")
     table.add_column("Alerts", overflow="fold")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     with lock:
         for device_id, info in sorted(state.items()):
@@ -114,7 +114,7 @@ def evaluate_anomaly(device_id: str, telemetry: dict[str, Any]) -> list[str]:
 
 
 def update_device(device_id: str, payload: dict[str, Any]) -> None:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     with lock:
         info = state[device_id]
         info["last_seen"] = now
@@ -137,14 +137,14 @@ def isolate_device(device_id: str) -> None:
         info = state[device_id]
         info["isolated"] = True
         info["status"] = "isolated"
-        info["last_isolation"] = datetime.utcnow()
+        info["last_isolation"] = datetime.now(timezone.utc)
         info["alerts"].append("Isolation command sent")
 
     console.log(f"[red]Isolation command sent[/red] to {device_id}")
 
 
 def mark_offline_devices() -> None:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     with lock:
         for device_id, info in state.items():
             if info["last_seen"] is None:
@@ -182,7 +182,7 @@ def on_message(client: mqtt.Client, userdata: Any, msg: mqtt.MQTTMessage) -> Non
         with lock:
             info = state[device_id]
             info["status"] = payload.get("state", "online")
-            info["last_seen"] = datetime.utcnow()
+            info["last_seen"] = datetime.now(timezone.utc)
             info["telemetry"].update(payload)
 
 
